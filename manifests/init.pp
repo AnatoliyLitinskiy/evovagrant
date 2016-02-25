@@ -48,8 +48,8 @@ class phpdevweb
       "vim-enhanced",
       "git",
       "nginx",
-      "php55",
-      "php55-php-fpm",
+      "php",
+      "php-fpm",
       "samba",
       "samba-client",
       "samba-common",
@@ -68,15 +68,15 @@ class phpdevweb
   }
 
   package {[
-      "php55-php-gd",
-      "php55-php-mysqlnd",
-      "php55-php-mbstring",
-      "php55-php-xml",
-      "php55-php-mcrypt",
+      "php-gd",
+      "php-mysqlnd",
+      "php-mbstring",
+      "php-xml",
+      "php-mcrypt",
     ]:
     ensure => present,
-    require => [Yumrepo["remi"], Package["php55"], Package["php55-php-fpm"]],
-    notify  => Service["php55-php-fpm"]
+    require => [Yumrepo["remi"], Package["php"], Package["php-fpm"]],
+    notify  => Service["php-fpm"]
   }
 
   service {
@@ -92,9 +92,9 @@ class phpdevweb
       ensure    => running,
       enable    => true
       ;
-    "php55-php-fpm":
-      name      => 'php55-php-fpm',
-      require   => Package["php55-php-fpm"],
+    "php-fpm":
+      name      => 'php-fpm',
+      require   => Package["php-fpm"],
       ensure    => running,
       enable    => true
       ;
@@ -159,25 +159,25 @@ class phpdevweb
       require => Package["samba"],
       notify  => [Service["smb"], Service["nmb"]]
       ;
-    "/opt/remi/php55/root/etc/php-fpm.d/www.conf":
+    "/etc/php-fpm.d/www.conf":
       owner   => "root",
       group   => "root",
       mode    => 644,
       replace => true,
       ensure  => present,
       source  => "/vagrant/files/php-fpm.d/www.conf",
-      require => Package["php55-php-fpm"],
-      notify  => Service["php55-php-fpm"]
+      require => Package["php-fpm"],
+      notify  => Service["php-fpm"]
       ;
-    "/opt/remi/php55/root/etc/php.ini":
+    "/etc/php.ini":
       owner   => "root",
       group   => "root",
       mode    => 644,
       replace => true,
       ensure  => present,
       source  => "/vagrant/files/php.ini",
-      require => Package["php55-php-fpm"],
-      notify  => Service["php55-php-fpm"]
+      require => Package["php-fpm"],
+      notify  => Service["php-fpm"]
       ;
     "/home/vagrant/.ssh":
       mode    => 700,
