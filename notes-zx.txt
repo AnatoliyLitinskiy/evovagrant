@@ -1,0 +1,69 @@
+- распаковываем архив в папку для вагранта
+- запускаем от админа cmd и переходим в эту папку
+
+- в этой папке:
+files\id_rsa - ложим public key своего сертификата для github в формате openSsh
+в manifests\init.pp поправить
+source => 'git@github.com:anton-tiptyuk/evonutapi.git' на свой
+
+после этого жмем
+vagrant up
+
+пока оно рожает - добавляем в /windows/system32/drivers/etc/hosts
+192.168.56.60 evodev.local
+
+это будет IP и HOSTNAME нашей виртуалки
+
+когда родит вагрант - заходим на него по ssh хоть по ip, хоть по имени.
+Пароли и имена на ssh и samba - vagrant:vagrant
+
+в консоли ssh делаем:
+
+cd /home/vagrant/www/evolution
+
+(создаем БД)
+sudo mysql -u root
+create database symfony;
+ctrl-d
+
+
+mkdir app/jwt
+мотня ниже будет спрашивать пассфрэйз. вот пассфрэйз: 0MB8mKoZSCyjtrhUizT4
+(он лежит в evolution\app\config\parameters.yml.dist)
+openssl genrsa -out app/jwt/private.pem -aes256 4096
+openssl rsa -pubout -in app/jwt/private.pem -out app/jwt/public.pem
+
+curl -s https://getcomposer.org/installer | php
+php composer.phar install
+- спросит токен, скажет УРЛ, сходить по урлу в гитхаб сгенерить токен
+
+
+sudo npm install bower -g
+npm install
+bower install
+
+ln -s /home/vagrant/www/evolution gulp-out
+
+gulp
+
+cp /vagrant/files/cache-clear.sh ./
+ln -s cache-clear.sh cc
+
+sudo service nginx restart
+sudo chown -R vagrant:nginx /var/lib/php/session/
+
+php symfony doctrine:migrations:migrate
+php symfony doctrine:fixtures:load --append
+php symfony dev:upload-old-database
+bash cache-clear.sh
+(или ./cc)
+
+
+sudo /sbin/service php-fpm stop
+mysql-community.repo
+init.pp
+vagrant provision
+
+
+
+
