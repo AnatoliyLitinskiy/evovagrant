@@ -52,11 +52,8 @@ ln -s cache-clear.sh cc
 sudo service nginx restart
 sudo chown -R vagrant:nginx /var/lib/php/session/
 
-php symfony doctrine:migrations:migrate
-php symfony doctrine:fixtures:load --append
-php symfony dev:upload-old-database
-bash cache-clear.sh
-(или ./cc)
+bash full-reset-dev.sh
+
 
 
 sudo /sbin/service php-fpm stop
