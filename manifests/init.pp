@@ -1,5 +1,11 @@
 # Puppet manifest for my PHP dev machine
 Exec { path => [ "/bin/", "/sbin/" , "/usr/bin/", "/usr/sbin/" ] }
+
+$projectName = 'evolution'
+# notice( "Interpolation works in double quote string ${projectName} and $projectName" )
+$gitDomain   = 'github.com'
+$gitUpstream = 'git@github.com:gplsek/evonutapi.git'
+
 class phpdevweb
 {
   File {
@@ -10,6 +16,42 @@ class phpdevweb
 
   file { '/etc/motd':
    content => "Welcome to your Vagrant-built virtual machine! Managed by Puppet.\n"
+  }
+
+  file {
+    "/home/vagrant":
+      owner   => "vagrant",
+      group   => "vagrant",
+      mode    => 711,
+      ensure => "directory"
+      ;
+    "/home/vagrant/www":
+      owner   => "vagrant",
+      group   => "vagrant",
+      ensure => "directory"
+      ;
+    "/home/vagrant/www/logs":
+      owner   => "vagrant",
+      group   => "vagrant",
+      ensure => "directory"
+      ;
+    "/home/vagrant/www/logs/${projectName}.access_log":
+      owner   => "vagrant",
+      group   => "vagrant",
+      mode    => "775",
+      ensure  => present
+      ;
+    "/home/vagrant/www/logs/${projectName}.error_log":
+      owner   => "vagrant",
+      group   => "vagrant",
+      mode    => "775",
+      ensure  => present
+      ;
+    "/home/vagrant/www/${projectName}":
+      owner   => "vagrant",
+      group   => "vagrant",
+      ensure => "directory"
+      ;
   }
 
   exec {
@@ -31,7 +73,7 @@ class phpdevweb
       ;
     "grap-mysql":
       command => "/bin/rpm -Ui http://dev.mysql.com/get/mysql57-community-release-el6-7.noarch.rpm",
-      creates => "/etc/yum.repos.d/mysql-release.repo",
+      creates => "/etc/yum.repos.d/mysql-community.repo",
       alias   => "grab-mysql",
       require => Exec["grab-percona"],
       ;
@@ -55,6 +97,7 @@ class phpdevweb
       "samba-common",
       "nodejs",
       "npm",
+      "screen",
     ]:
     ensure => present,
     require => Yumrepo["remi"]
@@ -73,6 +116,7 @@ class phpdevweb
       "php-mbstring",
       "php-xml",
       "php-mcrypt",
+      "php-xdebug",
     ]:
     ensure => present,
     require => [Yumrepo["remi"], Package["php"], Package["php-fpm"]],
@@ -88,7 +132,11 @@ class phpdevweb
       ;
     "nginx":
       name      => 'nginx',
-      require   => Package["nginx"],
+      require   => [
+        Package["nginx"],
+        File["/home/vagrant/www/logs/${projectName}.access_log"],
+        File["/home/vagrant/www/logs/${projectName}.error_log"],
+      ],
       ensure    => running,
       enable    => true
       ;
@@ -129,13 +177,13 @@ class phpdevweb
       require => Package["iptables"],
       notify  => Service["iptables"]
       ;
-    "/etc/nginx/conf.d/evolution.conf":
+    "/etc/nginx/conf.d/${projectName}.conf":
       owner   => "root",
       group   => "root",
       mode    => 644,
       replace => true,
       ensure  => present,
-      source  => "/vagrant/files/nginx/conf.d/evolution.conf",
+      source  => "/vagrant/files/nginx/conf.d/${projectName}.conf",
       require => Package["nginx"],
       notify  => Service["nginx"]
       ;
@@ -179,6 +227,16 @@ class phpdevweb
       require => Package["php-fpm"],
       notify  => Service["php-fpm"]
       ;
+    "/etc/php.d/xdebug.ini":
+      owner   => "root",
+      group   => "root",
+      mode    => 644,
+      replace => true,
+      ensure  => present,
+      source  => "/vagrant/files/xdebug.ini",
+      require => Package["php-fpm"],
+      notify  => Service["php-fpm"]
+      ;
     "/home/vagrant/.ssh":
       mode    => 700,
       owner   => "vagrant",
@@ -199,26 +257,30 @@ class phpdevweb
       ensure  => present,
       source  => "/vagrant/files/id_rsa"
       ;
-    "/home/vagrant/www":
+    "/home/vagrant/.bashrc":
       owner   => "vagrant",
       group   => "vagrant",
-      ensure => "directory"
+      mode    => 644,
+      replace => true,
+      ensure  => present,
+      source  => "/vagrant/files/.bashrc"
       ;
-    "/home/vagrant/www/logs":
+    "/home/vagrant/git-completion.bash":
       owner   => "vagrant",
       group   => "vagrant",
-      ensure => "directory"
+      mode    => 644,
+      replace => true,
+      ensure  => present,
+      source  => "/vagrant/files/git-completion.bash"
       ;
-    "/home/vagrant/www/evolution":
+    "/home/vagrant/www/${projectName}/cache-clear.sh":
       owner   => "vagrant",
       group   => "vagrant",
-      ensure => "directory"
-      ;
-    "/home/vagrant":
-      owner   => "vagrant",
-      group   => "vagrant",
-      mode    => 711,
-      ensure => "directory"
+      mode    => 750,
+      replace => true,
+      ensure  => present,
+      require => Vcsrepo["/home/vagrant/www/${projectName}"],
+      source  => "/vagrant/files/cache-clear.sh"
       ;
     "/etc/yum.repos.d/mysql-community.repo":
       owner   => "root",
@@ -231,21 +293,6 @@ class phpdevweb
       ;
   }
 
-  vcsrepo { '/home/vagrant/www/evolution':
-    user                => 'vagrant',
-    ensure              => present,
-    provider            => git,
-    source              => 'git@github.com:vladimirgolub/evonutapi.git',
-    require => [
-      File['/home/vagrant/.ssh/id_rsa'],
-      File['/home/vagrant/www/evolution'],
-      Exec["allow github"]
-    ],
-    owner               => 'vagrant',
-    group               => 'vagrant',
-    revision => 'master';
-  }
-
   user {
     "vagrant":
       groups => ["nginx"],
@@ -253,18 +300,83 @@ class phpdevweb
       require => Package["nginx"];
   }
 
+  mysql_database { 'symfony':
+    ensure  => 'present',
+    charset => 'utf8',
+    collate => 'utf8_general_ci',
+  }
+
   exec {
     "set samba passwd":
       command => "/bin/echo -e \"vagrant\nvagrant\n\" | /usr/bin/smbpasswd -s -a vagrant",
       require => Package["samba"],
       ;
-    "allow github":
-      command => "ssh-keyscan github.com >> /home/vagrant/.ssh/known_hosts",
+    "allow git domain":
+      unless => "grep -Fq \"${gitDomain} ssh-rsa\" /home/vagrant/.ssh/known_hosts",
+      command => "ssh-keyscan ${gitDomain} >> /home/vagrant/.ssh/known_hosts",
       user => 'vagrant',
-      require => File['/home/vagrant/.ssh/known_hosts'];
+      require => File['/home/vagrant/.ssh/known_hosts']
+      ;
     "install gulp":
+      creates => "/usr/bin/gulp",
       command => "npm install -g gulp",
-      require => Package['npm'];
+      require => Package['npm']
+      ;
+    "install bower":
+      creates => "/usr/bin/bower",
+      command => "npm install -g bower",
+      require => Package['npm']
+      ;
+    "symlink gulp-out":
+      creates => "/home/vagrant/www/${projectName}/gulp-out",
+      cwd => "/home/vagrant/www/${projectName}",
+      command => "ln -s /home/vagrant/www/${projectName} gulp-out",
+      require => Vcsrepo["/home/vagrant/www/${projectName}"],
+      ;
+  }
+
+  vcsrepo { "/home/vagrant/www/${projectName}":
+    user                => 'vagrant',
+    ensure              => present,
+    provider            => git,
+    source              => {
+      'upstream'          => $gitUpstream,
+    },
+    remote              => 'upstream',
+    revision            => 'master',
+    require => [
+      File['/home/vagrant/.ssh/id_rsa'],
+      File["/home/vagrant/www/${projectName}"],
+      Exec["allow git domain"],
+    ],
+    owner               => 'vagrant',
+    group               => 'vagrant'
+    ;
+  }
+
+  file {
+    "/home/vagrant/www/${projectName}/.git":
+      owner   => "vagrant",
+      group   => "vagrant",
+      mode    => "775",
+      require => Vcsrepo["/home/vagrant/www/${projectName}"],
+      ensure  => "directory"
+      ;
+    "/home/vagrant/www/${projectName}/.git/hooks":
+      owner   => "vagrant",
+      group   => "vagrant",
+      mode    => "775",
+      require => Vcsrepo["/home/vagrant/www/${projectName}"],
+      ensure  => "directory"
+      ;
+    "/home/vagrant/www/${projectName}/.git/hooks/prepare-commit-msg":
+      owner   => "vagrant",
+      group   => "vagrant",
+      mode    => "775",
+      source  => "/vagrant/files/prepare-commit-msg",
+      require => Vcsrepo["/home/vagrant/www/${projectName}"],
+      ensure  => present
+      ;
   }
 }
 include phpdevweb

@@ -3,8 +3,6 @@
 
 - в этой папке:
 files\id_rsa - ложим public key своего сертификата для github в формате openSsh
-в manifests\init.pp поправить
-source => 'git@github.com:anton-tiptyuk/evonutapi.git' на свой
 
 после этого жмем
 vagrant up
@@ -21,11 +19,6 @@ vagrant up
 
 cd /home/vagrant/www/evolution
 
-(создаем БД)
-sudo mysql -u root
-create database symfony;
-ctrl-d
-
 
 mkdir app/jwt
 мотня ниже будет спрашивать пассфрэйз. вот пассфрэйз: 0MB8mKoZSCyjtrhUizT4
@@ -38,28 +31,21 @@ php composer.phar install
 - спросит токен, скажет УРЛ, сходить по урлу в гитхаб сгенерить токен
 
 
-sudo npm install bower -g
 npm install
 bower install
 
-ln -s /home/vagrant/www/evolution gulp-out
-
 gulp
 
-cp /vagrant/files/cache-clear.sh ./
-ln -s cache-clear.sh cc
-
-sudo service nginx restart
 sudo chown -R vagrant:nginx /var/lib/php/session/
 
 bash full-reset-dev.sh
 
 
-
-sudo /sbin/service php-fpm stop
-mysql-community.repo
-init.pp
-vagrant provision
+# conspect
+# sudo /sbin/service php-fpm stop
+# mysql-community.repo
+# init.pp
+# vagrant provision
 
 
 
